@@ -9,6 +9,6 @@ const storage = multer.diskStorage({
     }
 })
 
-export const upload = multer({
+export const upload = multer({ //The multer function is called with an object that contains the storage configuration. This tells multer to use the disk storage engine you defined for handling uploads.
     storage
 }) 

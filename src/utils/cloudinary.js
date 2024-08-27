@@ -10,13 +10,17 @@ import fs from 'fs'
     });
 
 
+    //function to handle the process of uploading a file from a local path to  cloudinary
     const uploadOnCloudinary = async (localFilePath) => {
         try {
             if(!localFilePath) return null
 
             //upload the file on cloudinary
-           const response = cloudinary.uploader.upload(localFilePath, {
-                resource_type: "auto"
+
+            //response will hold the response from Cloudinary after the file is uploaded. 
+            // The response typically includes details like the URL of the uploaded file, its public ID, and other metadata.
+           const response = await cloudinary.uploader.upload(localFilePath, {
+                resource_type: "auto" // detect the type of file automatically
             })
 
             //file has been uploaded successfully
@@ -24,6 +28,7 @@ import fs from 'fs'
             return response
 
         } catch (error){
+            console.error("Error uploading file to Cloudinary:", error);
             fs.unlinkSync(localFilePath) //remove the locally saved temporary file as the upload operation got failed
             return null
         }
