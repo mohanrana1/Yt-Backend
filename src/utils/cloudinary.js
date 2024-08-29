@@ -23,6 +23,8 @@ import fs from 'fs'
                 resource_type: "auto" // detect the type of file automatically
             })
 
+            console.log(response) // log just for knowledge
+
             //file has been uploaded successfully
             console.log("file is uploaded on Cloudinary",  response.url)
             return response
@@ -36,7 +38,7 @@ import fs from 'fs'
 
 
 
-export default uploadOnCloudinary
+export  { uploadOnCloudinary }
 
 
 //     (async function() {
