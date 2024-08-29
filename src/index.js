@@ -1,9 +1,5 @@
-// require('dotenv').config({path: './env'})
+import app from './app.js';
 import dotenv from 'dotenv'
-
-// import mongoose from "mongoose";
-// import { DB_NAME } from './constants'
-
 import connectDB from "./db/index.js";
 
 dotenv.config({
@@ -12,8 +8,8 @@ dotenv.config({
 
 connectDB()
 .then(()=>{
-    application.listen(process.env.PORT || 8000 , ()=>{
-        application.on("error", (error)=>{
+    app.listen(process.env.PORT || 8000 , ()=>{
+        app.on("error", (error)=>{
             console.error("ERR: ", error)
             throw error
         })
@@ -34,6 +30,9 @@ connectDB()
 
 
 /*
+// require('dotenv').config({path: './env'})
+// import mongoose from "mongoose";
+// import { DB_NAME } from './constants'
 import express from 'express'
 const app =express()
 
