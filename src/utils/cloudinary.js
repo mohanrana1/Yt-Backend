@@ -23,10 +23,11 @@ import fs from 'fs'
                 resource_type: "auto" // detect the type of file automatically
             })
 
-            console.log(response) // log just for knowledge
+            console.log("response of the cloudinary is below:- ", response) // log just for knowledge
 
             //file has been uploaded successfully
             console.log("file is uploaded on Cloudinary",  response.url)
+            fs.unlinkSync(localFilePath) // unlink the file from the local system
             return response
 
         } catch (error){
