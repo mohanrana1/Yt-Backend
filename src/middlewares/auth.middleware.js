@@ -22,7 +22,7 @@ export const verifyJWT = asyncHandler(async(req,res,next) => {
         throw new ApiError(403, "Inavalid Access Token")
        }
 
-       req.user = user;
+       req.user = user;  // If the token is valid and the user exists, the user object is attached to the req object (i.e., req.user = user). This makes the user information available to subsequent middleware or route handlers.
        next()
 
     } catch (error) {

@@ -58,6 +58,8 @@ const userSchema = new Schema(
 // they inherit this from the surrounding lexical context. In Mongoose middleware, the this keyword needs to refer to the document being saved or processed. 
 // Therefore, a regular function (not an arrow function) should be used to correctly bind this to the Mongoose document.
 
+
+//this below code is to check whether the password is modified or not if modified then password is hashed before saving 
 userSchema.pre("save", async function (next) {
     if(this.isModified("password")){
         this.password = await bcrypt.hash(this.password, 10)
@@ -67,7 +69,8 @@ userSchema.pre("save", async function (next) {
 
 
 userSchema.methods.isPasswordCorrect = async function (password) {
-    return await bcrypt.compare(password, this.password)
+  // here this in this.password refers to the instance of the User model on which the method is called.
+    return await bcrypt.compare(password, this.password) // it return either true or false
 }
 
 userSchema.methods.generateAccessToken = function (){
