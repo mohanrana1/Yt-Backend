@@ -4,6 +4,19 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
+import { deleteFromCloudinary } from "../utils/deleteImage.js";
+
+function extractPublicIdFromUrl(url) {
+  if (!url) return null;
+  
+  // Regex to extract the publicId from a Cloudinary URL
+  const regex = /\/([^\/]+)\.[a-zA-Z0-9]+$/;
+  const match = url.match(regex);
+  
+  return match ? match[1] : null;
+}
+
+
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -322,8 +335,14 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   }
 
   //TODO: delete old image - assignment
+  const oldAvatarUrl = req.user?.avatar;
+  const oldPublicId = extractPublicIdFromUrl(oldAvatarUrl);
+  if (oldPublicId) {
+    await deleteFromCloudinary(oldPublicId);
+  }
 
    
+  // upload new avatar
   // here avatar is object
   const avatar = await uploadOnCloudinary(avatarLocalPath);
 
@@ -341,7 +360,9 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     { new: true }
   ).select("-password");
 
-  return res.status(200).json(200, user, "Avatar is updated successfully");
+  return res
+  .status(200)
+  .json(new ApiResponse(200, user, "Avatar is updated successfully"));
 
   
 });
@@ -374,6 +395,87 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
   
 });
+
+const getUserChannelProfile = asyncHandler(async(req,res)=>{
+  const {username} = req.params
+
+  if(!username?.trim()){
+    throw new ApiError(400, "username is missing")
+  }
+
+  const channel = await User.aggregate([ // When you call User.aggregate([...]), you are running an aggregation pipeline on the User collection.
+    //first stage 
+    {
+      $match: {
+        username: username?.toLowerCase()
+      }
+    },
+    //second stage which will perform some operation on result of first stage
+    {
+      //The $lookup stage takes several parameters to define the join:
+      // from: The name of the collection you want to join with the current collection.
+      // localField: The field in the current collection that corresponds to the foreign key in the from collection.
+      // foreignField: The field in the from collection that corresponds to the local key.
+      // as: The name of the new array field that will hold the joined documents.
+      $lookup: { // to get no of subscriber
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers" // this subscribers will be the new field
+      }
+    },
+    {
+      lookup: { // to get to how much channel is subscriber by this user/channel
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo"
+      }
+    },
+    {
+      $addFields: {
+        subscribersCount: {
+          $size: "$subscribers"
+        },
+        channelSubscribedToCount: {
+          $size: "$subscribedTo"
+        },
+        isSubscribed: {
+          $cond: {
+            if: {$in: [req.user?._id, $subscribers.subscriber]},
+            then: true,
+            else: false
+          }
+        }
+      }
+    },
+    {
+      $project: {
+        fullName: 1,
+        username: 1,
+        subscribersCount: 1,
+        channelSubscribedToCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverImage: 1,
+        email: 1
+      }
+    }
+  ])
+
+  if(!channel?.length){
+    throw new ApiError(404, "channel does not exist")
+  }
+
+  console.log(channel)
+
+  return res
+  .status(200)
+  .json(
+    new ApiResponse(200, channel[0], "user channel fetched sucessfully" )
+  )
+  
+})
 
 export {
   registerUser,
