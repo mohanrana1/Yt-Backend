@@ -16,8 +16,6 @@ function extractPublicIdFromUrl(url) {
   return match ? match[1] : null;
 }
 
-
-
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
     // Fetch the user from the database by ID
@@ -328,7 +326,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-  const avatarLocalPath = req.file?.path;
+  const avatarLocalPath = req.file?.path; // it is not req.files?.path because avatar is just one image right
 
   if (!avatarLocalPath) {
     throw new ApiError(400, "Avatar file is missing");
@@ -536,5 +534,7 @@ export {
   getCurrentUser,
   updateAccountDetails,
   updateUserAvatar,
-  updateUserCoverImage
+  updateUserCoverImage,
+  getUserChannelProfile,
+  getwatchHistory
 };
