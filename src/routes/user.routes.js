@@ -21,7 +21,7 @@ router.route("/register").post(
 
 router.route("/login").post(loginUser);
 
-// Secured routes
+// Secured routes means the route which need access token to access the resource
 router.route("/logout").post(verifyJWT, logoutUser);
 
 router.route("/refresh-token").post(refreshAccessToken)

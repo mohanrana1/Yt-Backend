@@ -5,6 +5,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import { deleteFromCloudinary } from "../utils/deleteImage.js";
+import mongoose from "mongoose";
 
 function extractPublicIdFromUrl(url) {
   if (!url) return null;
@@ -206,8 +207,8 @@ const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: {
-        refreshToken: undefined,
+      $Unset: {
+        refreshToken: 1,
       },
     },
     {
@@ -229,7 +230,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const incomingRefreshToken = req.cokies.refreshToken || req.body.refreshToken; // this is the token of user's cookies
+  const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken; // this is the token of user's cookies
 
   if (!incomingRefreshToken) {
     throw new ApiError(401, "unauthorized request");
@@ -305,20 +306,32 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 const updateAccountDetails = asyncHandler(async (req, res) => {
   const { fullName, email } = req.body;
 
+  // Check for missing fields
   if (!fullName || !email) {
     throw new ApiError(400, "All fields are required");
   }
 
+  // Typically, when a user is authenticated, middleware (like verifyJWT) decodes the JWT and attaches the authenticated user’s details (including the user ID) to the req.user object.
+  // Get user ID from req.user (if it's the authenticated user)
+  const userId = req.user._id;
+
+  //here req.body._id is making the client/user to send his/her id so this is not good pracrtise cuz this will allow the user to update other account
+
+  // Find and update the user by their ID
   const user = await User.findByIdAndUpdate(
-    req.body?._id,
+    userId,
     {
       $set: {
-        fullName, // fullName: fullName is written simply as fullName in ES6 version of js
+        fullName,
         email,
       },
     },
-    { new: true }
-  ).select("-password");
+    { new: true } // Return the updated user
+  ).select("-password"); // Exclude password field
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
 
   return res
     .status(200)
@@ -373,7 +386,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
   }
 
   // here coverImage is object
-  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+  const coverImage = await uploadOnCloudinary(CoverImageLocalPath);
 
   if (!coverImage.url) {
     throw new ApiError(400, "Error while uploading coverImage");
@@ -386,66 +399,71 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         coverImage: coverImage.url,
       },
     },
-    { new: true }
+    { new: true } // Options: { new: true } tells Mongoose to return the updated document instead of the original document before the update.
   ).select("-password");
 
-  return res.status(200).json(200, user, "coverImage is updated successfully");
-
-  
+  return res
+  .status(200)
+  .json( new ApiResponse(200, user, "coverImage is updated successfully"));
+ 
 });
 
-const getUserChannelProfile = asyncHandler(async(req,res)=>{
-  const {username} = req.params
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
 
-  if(!username?.trim()){
-    throw new ApiError(400, "username is missing")
+  if (!username?.trim()) {
+    throw new ApiError(400, "username is missing");
   }
 
-  const channel = await User.aggregate([ // When you call User.aggregate([...]), you are running an aggregation pipeline on the User collection.
-    //first stage 
+  const channel = await User.aggregate([
     {
+      // $match filters the documents based on the given criteria (username in this case). It doesn’t directly handle the join but ensures that only the matched document(s) continue through the pipeline.
+
       $match: {
-        username: username?.toLowerCase()
-      }
+        username: username?.toLowerCase(),
+      },
     },
-    //second stage which will perform some operation on result of first stage
     {
-      //The $lookup stage takes several parameters to define the join:
-      // from: The name of the collection you want to join with the current collection.
-      // localField: The field in the current collection that corresponds to the foreign key in the from collection.
-      // foreignField: The field in the from collection that corresponds to the local key.
-      // as: The name of the new array field that will hold the joined documents.
-      $lookup: { // to get no of subscriber
+      $lookup: {
         from: "subscriptions",
         localField: "_id",
         foreignField: "channel",
-        as: "subscribers" // this subscribers will be the new field
-      }
+        as: "subscribers", // subscribers is the field that contain the array of documents
+      },
     },
     {
-      lookup: { // to get to how much channel is subscriber by this user/channel
+      $lookup: {
         from: "subscriptions",
         localField: "_id",
-        foreignField: "subscriber",
-        as: "subscribedTo"
-      }
+        foreignField: "subscriber", // Corrected foreignField
+        as: "subscribedTo",
+      },
     },
     {
       $addFields: {
-        subscribersCount: {
-          $size: "$subscribers"
-        },
-        channelSubscribedToCount: {
-          $size: "$subscribedTo"
-        },
+        subscribersCount: { $size: "$subscribers" },
+        channelSubscribedToCount: { $size: "$subscribedTo" },
         isSubscribed: {
           $cond: {
-            if: {$in: [req.user?._id, $subscribers.subscriber]},
+            if: {
+              $gt: [
+                {
+                  $size: {
+                    $filter: {
+                      input: "$subscribers",
+                      as: "subscriber",
+                      cond: { $eq: ["$$subscriber.subscriber", req.user?._id] },
+                    },
+                  },
+                },
+                0,
+              ],
+            },
             then: true,
-            else: false
-          }
-        }
-      }
+            else: false,
+          },
+        },
+      },
     },
     {
       $project: {
@@ -456,24 +474,19 @@ const getUserChannelProfile = asyncHandler(async(req,res)=>{
         isSubscribed: 1,
         avatar: 1,
         coverImage: 1,
-        email: 1
-      }
-    }
-  ])
+        email: 1,
+        subscribers: 1
+      },
+    },
+  ]);
 
-  if(!channel?.length){
-    throw new ApiError(404, "channel does not exist")
+  if (!channel?.length) {
+    throw new ApiError(404, "channel does not exist");
   }
 
-  console.log(channel)
+  return res.status(200).json(new ApiResponse(200, channel[0], "user channel fetched successfully"));
+});
 
-  return res
-  .status(200)
-  .json(
-    new ApiResponse(200, channel[0], "user channel fetched sucessfully" )
-  )
-  
-})
 
 const getwatchHistory = asyncHandler(async(req,res)=>{
   const user = await User.aggregate([
