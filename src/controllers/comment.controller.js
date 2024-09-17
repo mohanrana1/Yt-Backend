@@ -19,6 +19,7 @@ const getvideoComments = asyncHandler(async (req, res) => {
 
   // 2. Convert page and limit to Numbers
   page = parseInt(page);
+  
   limit = parseInt(limit);
 
   // 3. Calculate skip Value

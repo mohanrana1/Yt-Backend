@@ -60,7 +60,6 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // 1. get user details from frontend
   console.log("NEW LOG STARTS FROM HERE: -");
-  console.log("req.body from userController is:", req.body);
 
   const { fullName, email, username, password } = req.body;
 
