@@ -179,12 +179,13 @@ const loginUser = asyncHandler(async (req, res) => {
     "-password -refreshToken"
   );
 
-  // 6. send the cookies
+  // 7. send the cookies
   const options = {
-    httpOnly: true,
+    httpOnly: true, // Prevent access from JavaScript (XSS protection)
     secure: true,
   };
 
+  //8. send the response
   return res
     .status(200)
     .cookie("accessToken", accessToken, options)
