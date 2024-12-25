@@ -180,9 +180,10 @@ const loginUser = asyncHandler(async (req, res) => {
   );
 
   // 7. send the cookies
+  //these code is just the configuration of the cookies
   const options = {
     httpOnly: true, // Prevent access from JavaScript (XSS protection)
-    secure: true,
+    secure: true, // Ensures the cookie is sent only over HTTPS
   };
 
   //8. send the response
@@ -216,7 +217,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     }
   );
 
-  // this makes to upadate cookies from database only
+ 
   const options = {
     httpOnly: true,
     secure: true,
